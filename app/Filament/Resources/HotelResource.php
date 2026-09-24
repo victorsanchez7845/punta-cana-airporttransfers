@@ -6,20 +6,19 @@ use App\Filament\Resources\HotelResource\Pages;
 use App\Models\Hotel;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
 use Filament\Tables\Columns\IconColumn;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\HtmlString;
 
 class HotelResource extends Resource
@@ -28,11 +27,15 @@ class HotelResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
 
+    protected static ?string $navigationGroup = 'Punta Cana Airport Transfers';
+
     protected static ?string $navigationLabel = 'Hotels';
 
     protected static ?string $modelLabel = 'Hotel';
 
     protected static ?string $pluralModelLabel = 'Hotels';
+
+    protected static ?string $slug = 'hotels';
 
     public static function form(Form $form): Form
     {
@@ -40,88 +43,152 @@ class HotelResource extends Resource
             ->schema([
                 Section::make('General')
                     ->schema([
-                        Grid::make(2)->schema([
-                            TextInput::make('title')
-                                ->label('Title')
-                                ->required()
-                                ->maxLength(255),
+                        Grid::make(2)
+                            ->schema([
+                                TextInput::make('title')
+                                    ->label('Title')
+                                    ->required()
+                                    ->maxLength(255),
 
-                            TextInput::make('image')
-                                ->label('Image URL')
-                                ->url()
-                                ->required()
-                                ->maxLength(2048)
-                                ->helperText('Paste the ImageKit.io image URL here'),
+                                TextInput::make('image')
+                                    ->label('Image URL')
+                                    ->url()
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->live(onBlur: true)
+                                    ->helperText(
+                                        'Paste the ImageKit.io image URL here'
+                                    ),
 
-                            Forms\Components\Placeholder::make('image_preview')
-                                ->label('Preview')
-                                ->content(fn ($get) => $get('image')
-                                    ? new HtmlString(
-                                        '<img src="' . e($get('image')) . '" 
-                                        style="max-width:250px;border-radius:12px;margin-top:10px;">'
-                                    )
-                                    : 'No image selected'),
+                                Forms\Components\Placeholder::make('image_preview')
+                                    ->label('Preview')
+                                    ->content(function (Forms\Get $get) {
+                                        $url = $get('image');
 
-                            TextInput::make('image_alt')
-                                ->label('Image Alt')
-                                ->maxLength(255)
-                                ->helperText('Describe the main image for SEO and accessibility'),
+                                        if (
+                                            ! is_string($url)
+                                            || ! filter_var(
+                                                $url,
+                                                FILTER_VALIDATE_URL
+                                            )
+                                            || ! in_array(
+                                                strtolower(
+                                                    (string) parse_url(
+                                                        $url,
+                                                        PHP_URL_SCHEME
+                                                    )
+                                                ),
+                                                ['http', 'https'],
+                                                true
+                                            )
+                                        ) {
+                                            return 'No image selected';
+                                        }
 
-                            TextInput::make('slug')
-                                ->label('Slug')
-                                ->required()
-                                ->maxLength(255)
-                                ->unique(ignoreRecord: true),
-                        ]),
+                                        return new HtmlString(
+                                            '<img src="' . e($url) . '"'
+                                            . ' alt="Hotel image preview"'
+                                            . ' style="max-width:250px;'
+                                            . 'border-radius:12px;'
+                                            . 'margin-top:10px;">'
+                                        );
+                                    }),
 
-                        Grid::make(2)->schema([
-                            Select::make('language')
-                                ->label('Language')
-                                ->options([
-                                    'en' => 'English',
-                                    'es' => 'Español',
-                                ])
-                                ->default('en')
-                                ->required()
-                                ->live(),
+                                TextInput::make('image_alt')
+                                    ->label('Image Alt')
+                                    ->maxLength(255)
+                                    ->helperText(
+                                        'Describe the main image for SEO and accessibility'
+                                    ),
 
-                            Hidden::make('group_id'),
-                        ]),
+                                TextInput::make('slug')
+                                    ->label('Slug')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->unique(ignoreRecord: true),
+                            ]),
+
+                        Grid::make(2)
+                            ->schema([
+                                Select::make('language')
+                                    ->label('Language')
+                                    ->options([
+                                        'en' => 'English',
+                                        'es' => 'Español',
+                                    ])
+                                    ->default('en')
+                                    ->required()
+                                    ->live(),
+
+                                Hidden::make('group_id'),
+                            ]),
 
                         Select::make('translation_of')
                             ->label('Traducción de')
                             ->options(function () {
-                                return Hotel::where('language', 'en')
+                                return Hotel::query()
+                                    ->where('language', 'en')
                                     ->orderBy('title')
                                     ->pluck('title', 'id');
                             })
                             ->searchable()
                             ->preload()
-                            ->placeholder('Selecciona el hotel en inglés')
-                            ->visible(fn (Forms\Get $get): bool => $get('language') === 'es')
-                            ->rule(function (callable $get, ?Hotel $record) {
-                                return function (string $attribute, $value, \Closure $fail) use ($get, $record) {
-                                    if ($get('language') !== 'es' || empty($value)) {
+                            ->placeholder(
+                                'Selecciona el hotel en inglés'
+                            )
+                            ->visible(
+                                fn (Forms\Get $get): bool =>
+                                    $get('language') === 'es'
+                            )
+                            ->rule(function (
+                                Forms\Get $get,
+                                ?Hotel $record
+                            ) {
+                                return function (
+                                    string $attribute,
+                                    $value,
+                                    \Closure $fail
+                                ) use ($get, $record) {
+                                    if (
+                                        $get('language') !== 'es'
+                                        || empty($value)
+                                    ) {
                                         return;
                                     }
 
-                                    $original = Hotel::find($value);
+                                    $original = Hotel::query()
+                                        ->where('language', 'en')
+                                        ->find($value);
 
                                     if (! $original) {
+                                        $fail(
+                                            'Selecciona un hotel en inglés '
+                                            . 'de Punta Cana Airport Transfers.'
+                                        );
+
                                         return;
                                     }
 
-                                    $groupId = $original->group_id ?: $original->id;
+                                    $groupId = $original->group_id
+                                        ?: $original->id;
 
-                                    $query = Hotel::where('group_id', $groupId)
+                                    $query = Hotel::query()
+                                        ->where('group_id', $groupId)
                                         ->where('language', 'es');
 
                                     if ($record) {
-                                        $query->where('id', '!=', $record->id);
+                                        $query->where(
+                                            'id',
+                                            '!=',
+                                            $record->id
+                                        );
                                     }
 
                                     if ($query->exists()) {
-                                        $fail('Ya existe una versión en español para este hotel.');
+                                        $fail(
+                                            'Ya existe una versión en español '
+                                            . 'para este hotel.'
+                                        );
                                     }
                                 };
                             }),
@@ -137,11 +204,12 @@ class HotelResource extends Resource
                             ->label('Excerpt')
                             ->rows(3),
 
-                        Forms\Components\Textarea::make('content')
-                        ->required()
-                        ->rows(18)
-                        ->autosize()
-                        ->columnSpanFull(),
+                        Textarea::make('content')
+                            ->label('Content')
+                            ->required()
+                            ->rows(18)
+                            ->autosize()
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('SEO')
@@ -157,47 +225,54 @@ class HotelResource extends Resource
 
                 Section::make('Hotel Info')
                     ->schema([
-                        Grid::make(3)->schema([
-                            TextInput::make('rating')
-                                ->label('Rating')
-                                ->numeric()
-                                ->step(0.1)
-                                ->minValue(0)
-                                ->maxValue(5),
+                        Grid::make(3)
+                            ->schema([
+                                TextInput::make('rating')
+                                    ->label('Rating')
+                                    ->numeric()
+                                    ->step(0.1)
+                                    ->minValue(0)
+                                    ->maxValue(5),
 
-                            Select::make('price_range')
-                                ->label('Price Range')
-                                ->options([
-                                    '$' => '$',
-                                    '$$' => '$$',
-                                    '$$$' => '$$$',
-                                    '$$$$' => '$$$$',
-                                ]),
+                                Select::make('price_range')
+                                    ->label('Price Range')
+                                    ->options([
+                                        '$' => '$',
+                                        '$$' => '$$',
+                                        '$$$' => '$$$',
+                                        '$$$$' => '$$$$',
+                                    ]),
 
-                            Select::make('tag')
-                                ->label('Tag')
-                                ->options([
-                                    'luxury' => 'Luxury',
-                                    'budget' => 'Budget',
-                                    'boutique' => 'Boutique',
-                                    'family' => 'Family',
-                                ])
-                                ->searchable(),
-                        ]),
+                                Select::make('tag')
+                                    ->label('Tag')
+                                    ->options([
+                                        'luxury' => 'Luxury',
+                                        'budget' => 'Budget',
+                                        'boutique' => 'Boutique',
+                                        'family' => 'Family',
+                                    ])
+                                    ->searchable(),
+                            ]),
 
                         Textarea::make('address')
                             ->label('Address')
-                            ->rows(2),
+                            ->rows(2)
+                            ->maxLength(255),
 
-                        Grid::make(2)->schema([
-                            TextInput::make('latitude')
-                                ->label('Latitude')
-                                ->numeric(),
+                        Grid::make(2)
+                            ->schema([
+                                TextInput::make('latitude')
+                                    ->label('Latitude')
+                                    ->numeric()
+                                    ->minValue(-90)
+                                    ->maxValue(90),
 
-                            TextInput::make('longitude')
-                                ->label('Longitude')
-                                ->numeric(),
-                        ]),
+                                TextInput::make('longitude')
+                                    ->label('Longitude')
+                                    ->numeric()
+                                    ->minValue(-180)
+                                    ->maxValue(180),
+                            ]),
                     ]),
             ]);
     }
@@ -206,7 +281,6 @@ class HotelResource extends Resource
     {
         return $table
             ->columns([
-
                 ImageColumn::make('image')
                     ->label('Image'),
 
@@ -241,9 +315,7 @@ class HotelResource extends Resource
                     ->dateTime()
                     ->sortable(),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([])
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
@@ -256,9 +328,7 @@ class HotelResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
