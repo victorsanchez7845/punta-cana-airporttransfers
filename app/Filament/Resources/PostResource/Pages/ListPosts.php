@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\PuntaCanaPostResource\Pages;
+namespace App\Filament\Resources\PostResource\Pages;
 
-use App\Filament\Resources\PuntaCanaPostResource;
+use App\Filament\Resources\PostResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
 class ListPosts extends ListRecords
 {
-    protected static string $resource = PuntaCanaPostResource::class;
+    protected static string $resource = PostResource::class;
 
     protected function getHeaderActions(): array
     {
