@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Filament\Resources\PuntaCanaPostResource\Pages;
+namespace App\Filament\Resources\PostResource\Pages;
 
-use App\Filament\Resources\PuntaCanaPostResource;
+use App\Filament\Resources\PostResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreatePost extends CreateRecord
 {
-    protected static string $resource = PuntaCanaPostResource::class;
+    protected static string $resource = PostResource::class;
 }
