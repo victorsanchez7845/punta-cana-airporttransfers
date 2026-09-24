@@ -7,19 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class Post extends Model
 {
+    protected $table = 'punta_cana_posts';
+
     protected $fillable = [
-    'title',
-    'slug',
-    'language',
-    'group_id',
-    'excerpt',
-    'content',
-    'featured_image',
-    'meta_title',
-    'meta_description',
-    'is_published',
-    'published_at',
-];
+        'title',
+        'slug',
+        'language',
+        'group_id',
+        'excerpt',
+        'content',
+        'featured_image',
+        'meta_title',
+        'meta_description',
+        'is_published',
+        'published_at',
+    ];
 
     protected $casts = [
         'is_published' => 'boolean',
@@ -30,9 +32,9 @@ class Post extends Model
     {
         return $query
             ->where('is_published', true)
-            ->where(function ($q) {
-                $q->whereNull('published_at')
-                  ->orWhere('published_at', '<=', now());
+            ->where(function (Builder $query) {
+                $query->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
             });
     }
 }
