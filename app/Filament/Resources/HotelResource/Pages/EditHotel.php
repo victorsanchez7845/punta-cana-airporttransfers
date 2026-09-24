@@ -14,8 +14,12 @@ class EditHotel extends EditRecord
     {
         $data['translation_of'] = null;
 
-        if (($data['language'] ?? null) === 'es' && ! empty($data['group_id'])) {
-            $original = Hotel::where('group_id', $data['group_id'])
+        if (
+            ($data['language'] ?? null) === 'es'
+            && ! empty($data['group_id'])
+        ) {
+            $original = Hotel::query()
+                ->where('group_id', $data['group_id'])
                 ->where('language', 'en')
                 ->first();
 
@@ -29,15 +33,22 @@ class EditHotel extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if (($data['language'] ?? null) === 'es' && ! empty($data['translation_of'])) {
-            $original = Hotel::find($data['translation_of']);
+        if (
+            ($data['language'] ?? null) === 'es'
+            && ! empty($data['translation_of'])
+        ) {
+            $original = Hotel::query()
+                ->where('language', 'en')
+                ->findOrFail($data['translation_of']);
 
-            if ($original) {
-                $data['group_id'] = $original->group_id ?: $original->id;
-            }
+            $data['group_id'] = $original->group_id ?: $original->id;
         }
 
-        if (($data['language'] ?? null) === 'en' && empty($data['group_id']) && $this->record) {
+        if (
+            ($data['language'] ?? null) === 'en'
+            && empty($data['group_id'])
+            && $this->record
+        ) {
             $data['group_id'] = $this->record->id;
         }
 
