@@ -12,12 +12,15 @@ class CreateHotel extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        if (($data['language'] ?? null) === 'es' && ! empty($data['translation_of'])) {
-            $original = Hotel::find($data['translation_of']);
+        if (
+            ($data['language'] ?? null) === 'es'
+            && ! empty($data['translation_of'])
+        ) {
+            $original = Hotel::query()
+                ->where('language', 'en')
+                ->findOrFail($data['translation_of']);
 
-            if ($original) {
-                $data['group_id'] = $original->group_id ?: $original->id;
-            }
+            $data['group_id'] = $original->group_id ?: $original->id;
         }
 
         unset($data['translation_of']);
